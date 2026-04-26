@@ -3,8 +3,6 @@ kind: StatefulSet
 metadata:
   name: {{ .Release.Name }}-{{ .Chart.Name }}
 spec:
-      imagePullSecrets:
-        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
   serviceName: {{ .Chart.Name }}
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -30,10 +28,8 @@ spec:
               mountPath: {{ .Values.persistence.mountPath }}
   volumeClaimTemplates:
     - metadata:
-        name: data
+      name: data
       spec:
-      imagePullSecrets:
-        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
         accessModes: [ "ReadWriteOnce" ]
         storageClassName: {{ .Values.persistence.storageClass | quote }}
         resources:
@@ -45,9 +41,8 @@ kind: Service
 metadata:
   name: {{ .Chart.Name }}
 spec:
-      imagePullSecrets:
-        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
   ports:
     - port: {{ .Values.service.port }}
   selector:
     app: {{ .Chart.Name }}
+
