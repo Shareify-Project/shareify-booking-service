@@ -26,7 +26,7 @@ app = FastAPI(title="Shareify Booking Service", version="1.0.0")
 # ── Config ──────────────────────────────────────────────────────────────────
 SECRET_KEY = os.getenv("JWT_SECRET", "shareify-secret-key-2024")
 ALGORITHM = "HS256"
-DATABASE = os.getenv("DATABASE_PATH", "./data/bookings.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:shareify-secure-db-pass@postgres-db:5432/booking_service")
 
 ITEM_SERVICE_URL = os.getenv("ITEM_SERVICE_URL", "http://localhost:8002")
 INVENTORY_SERVICE_URL = os.getenv("INVENTORY_SERVICE_URL", "http://localhost:8003")
@@ -304,4 +304,5 @@ def complete_booking(booking_id: str, payload: dict = Depends(verify_token)):
 @app.get("/health")
 def health():
     return {"status": "healthy", "service": "shareify-booking-service"}
+
 
