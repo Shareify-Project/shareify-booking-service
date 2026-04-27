@@ -8,8 +8,8 @@ RUN pip install --user --no-cache-dir -r requirements.txt
 FROM python:3.10-slim
 WORKDIR /app
 
-# Create non-root user for security
-RUN groupadd -r shareify && useradd -r -g shareify shareify
+# Create non-root user with FIXED UID 1000
+RUN groupadd -g 1000 shareify && useradd -u 1000 -g 1000 -m -s /bin/bash shareify
 RUN mkdir -p /app/data && chown -R shareify:shareify /app
 
 # Copy dependencies from builder
