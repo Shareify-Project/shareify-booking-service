@@ -49,6 +49,20 @@ async def prometheus_middleware(request: Request, call_next):
     
     return response
 
+# -- POSTGRESQL HOTFIX: SQLite Polyfill --------------------------------------
+# Automatically translates SQLite conn.execute() and '?' to PostgreSQL syntax
+import psycopg2
+from psycopg2.extensions import connection
+
+def _sqlite_to_psycopg2_execute(self, query, vars=None):
+    if '?' in query:
+        query = query.replace('?', '%s')
+    cursor = self.cursor()
+    cursor.execute(query, vars)
+    return cursor
+
+connection.execute = _sqlite_to_psycopg2_execute
+# ----------------------------------------------------------------------------
 
 # ── Config ──────────────────────────────────────────────────────────────────
 SECRET_KEY = os.getenv("JWT_SECRET", "shareify-secret-key-2024")
