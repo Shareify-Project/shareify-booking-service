@@ -49,19 +49,17 @@ async def prometheus_middleware(request: Request, call_next):
     
     return response
 
-# -- POSTGRESQL HOTFIX: SQLite Polyfill --------------------------------------
-# Automatically translates SQLite conn.execute() and '?' to PostgreSQL syntax
+# --
+# -- POSTGRESQL HOTFIX: SQLite Polyfill Helper -------------------------------
 import psycopg2
-from psycopg2.extensions import connection
+from psycopg2.extras import RealDictCursor
 
-def _sqlite_to_psycopg2_execute(self, query, vars=None):
+def db_execute(conn, query, vars=None):
     if '?' in query:
         query = query.replace('?', '%s')
-    cursor = self.cursor()
+    cursor = conn.cursor()
     cursor.execute(query, vars)
     return cursor
-
-connection.execute = _sqlite_to_psycopg2_execute
 # ----------------------------------------------------------------------------
 
 # ── Config ──────────────────────────────────────────────────────────────────
@@ -86,7 +84,7 @@ def get_db():
 
 def init_db():
     conn = get_db()
-    conn.execute("""
+    db_execute(conn, """
         CREATE TABLE IF NOT EXISTS bookings (
             booking_id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL,
@@ -231,7 +229,7 @@ def create_booking(booking: BookingCreate, payload: dict = Depends(verify_token)
     # ── Step 7: Save booking ────────────────────────────────────────────
     conn = get_db()
     try:
-        conn.execute(
+        db_execute(conn, 
             "INSERT INTO bookings "
             "(booking_id, user_id, item_id, owner_id, start_date, end_date, "
             "total_price, payment_id, status, created_at) "
@@ -280,7 +278,7 @@ def create_booking(booking: BookingCreate, payload: dict = Depends(verify_token)
 def get_user_bookings(payload: dict = Depends(verify_token)):
     conn = get_db()
     try:
-        rows = conn.execute(
+        rows = db_execute(conn, 
             "SELECT * FROM bookings WHERE user_id = ? ORDER BY created_at DESC",
             (payload["user_id"],),
         ).fetchall()
@@ -294,7 +292,7 @@ def verify_completion(user_id: str, item_id: str):
     """Inter-service endpoint for Review Service."""
     conn = get_db()
     try:
-        row = conn.execute(
+        row = db_execute(conn, 
             "SELECT 1 FROM bookings WHERE user_id = ? AND item_id = ? AND status = 'completed'",
             (user_id, item_id)
         ).fetchone()
@@ -307,7 +305,7 @@ def verify_completion(user_id: str, item_id: str):
 def get_booking(booking_id: str, payload: dict = Depends(verify_token)):
     conn = get_db()
     try:
-        row = conn.execute(
+        row = db_execute(conn, 
             "SELECT * FROM bookings WHERE booking_id = ?", (booking_id,)
         ).fetchone()
         if not row:
@@ -322,7 +320,7 @@ def complete_booking(booking_id: str, payload: dict = Depends(verify_token)):
     user_id = payload["user_id"]
     conn = get_db()
     try:
-        row = conn.execute(
+        row = db_execute(conn, 
             "SELECT * FROM bookings WHERE booking_id = ?", (booking_id,)
         ).fetchone()
         if not row:
@@ -332,7 +330,7 @@ def complete_booking(booking_id: str, payload: dict = Depends(verify_token)):
         if row["status"] != "confirmed":
             raise HTTPException(status_code=400, detail="Only confirmed bookings can be completed")
 
-        conn.execute(
+        db_execute(conn, 
             "UPDATE bookings SET status = 'completed' WHERE booking_id = ?",
             (booking_id,)
         )
@@ -345,6 +343,7 @@ def complete_booking(booking_id: str, payload: dict = Depends(verify_token)):
 @app.get("/health")
 def health():
     return {"status": "healthy", "service": "shareify-booking-service"}
+
 
 
 
